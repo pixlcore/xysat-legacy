@@ -1,0 +1,181 @@
+name: Build and Package Satellite (Legacy)
+
+on:
+  push:
+    tags:
+      - '*' # Trigger on any tag push
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+            platform: linux
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            platform: linux
+          - os: macos-15-intel
+            arch: x64
+            platform: darwin
+          - os: macos-15
+            arch: arm64
+            platform: darwin
+          - os: windows-latest
+            arch: x64
+            platform: windows
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch xySat Source (main)
+        run: |
+          curl -L "https://github.com/pixlcore/xysat/archive/refs/heads/main.tar.gz" | \
+            tar -xzf - --strip-components=1 --exclude='*/.github*'
+        shell: bash
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Report System Architecture
+        run: |
+          echo "Matrix: ${{ matrix.arch }}/ ${{ matrix.platform }}"
+          node -e 'const os = require("os"); console.log("Actual: " + os.arch() + "/" + os.platform());'
+        shell: bash
+
+      - name: Install Dependencies
+        run: npm install
+        shell: bash
+
+      - name: Download and Extract Node.js Runtime
+        run: |
+          NODE_VERSION=22.22.0
+
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            # Install additional dependency
+            npm install node-windows
+
+            # For Windows, we only need node.exe
+            NODE_DIST="node-v${NODE_VERSION}-win-${{ matrix.arch }}"
+            NODE_TARBALL="${NODE_DIST}.zip"
+
+            # Download the ZIP file
+            curl -L -O "https://nodejs.org/dist/v${NODE_VERSION}/${NODE_TARBALL}"
+
+            # Create bin directory if it doesn't exist
+            mkdir -p bin
+
+            # Extract only node.exe from the ZIP and place it in the bin directory
+            # Using PowerShell for better ZIP handling on Windows
+            pwsh -Command "
+              Add-Type -AssemblyName System.IO.Compression.FileSystem;
+              \$zip = [System.IO.Compression.ZipFile]::OpenRead('$NODE_TARBALL');
+              \$entry = \$zip.Entries | Where-Object { \$_.Name -eq 'node.exe' };
+              [System.IO.Compression.ZipFileExtensions]::ExtractToFile(\$entry, 'bin/node.exe', \$true);
+              \$zip.Dispose();
+            "
+
+            # Clean up unnecessary files
+            rm -f "${NODE_TARBALL}"
+            rm -rf .git .github *.sh
+
+            # Move Windows batch files from win directory to root
+            if [ -d "win" ]; then
+              echo "Moving Windows batch files to root directory..."
+              cp -f win/* .
+              rm -rf win
+              echo "Windows batch files moved successfully."
+            else
+              echo "Warning: 'win' directory not found, no batch files to move."
+            fi
+          else
+            # Unix platforms
+            if [[ "${{ matrix.platform }}" == "linux" && "${{ matrix.arch }}" == "x64" ]]; then
+              # Use unofficial builds for older GLIBC compatibility
+              NODE_TARBALL="node-v${NODE_VERSION}-linux-x64-glibc-217.tar.gz"
+              NODE_URL="https://unofficial-builds.nodejs.org/download/release/v${NODE_VERSION}/${NODE_TARBALL}"
+            else
+              NODE_TARBALL="node-v${NODE_VERSION}-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz"
+              NODE_URL="https://nodejs.org/dist/v${NODE_VERSION}/${NODE_TARBALL}"
+            fi
+
+            curl -L -o "${NODE_TARBALL}" "${NODE_URL}"
+            tar --strip-components=1 -xzf "${NODE_TARBALL}"
+            rm -f "${NODE_TARBALL}"
+            rm -rf .git .github CHANGELOG.md LICENSE share include bin/npm bin/npx bin/corepack lib/node_modules win
+          fi
+        shell: bash
+
+      - name: Package Application
+        run: |
+          BUNDLE_NAME="satellite-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz"
+
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            # Windows-specific commands
+            # Create temp dir outside of current directory to avoid including it in the archive
+            TEMP_DIR="$RUNNER_TEMP/artifact"
+            mkdir -p "$TEMP_DIR"
+
+            # Use 7-Zip which is pre-installed on Windows runners
+            # Create tar archive to stdout, then compress it to the temp directory
+            7z a -ttar -so -- . | 7z a -si "$TEMP_DIR/$BUNDLE_NAME"
+
+            # Move to workspace
+            mv "$TEMP_DIR/$BUNDLE_NAME" $GITHUB_WORKSPACE/
+          else
+            # Unix commands (Linux/macOS)
+            mkdir -p /tmp/artifact
+            tar -czvf "/tmp/artifact/${BUNDLE_NAME}" .
+            mv "/tmp/artifact/${BUNDLE_NAME}" $GITHUB_WORKSPACE/
+          fi
+        shell: bash
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: satellite-${{ matrix.platform }}-${{ matrix.arch }}
+          path: satellite-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for tags
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        id: create_release
+        run: |
+          # Create the release and capture the output
+          RESPONSE=$(gh release create "${{ github.ref_name }}" \
+            --title "Release ${{ github.ref_name }}" \
+            --notes "Release ${{ github.ref_name }}" \
+            --generate-notes)
+
+          echo "Release created successfully: $RESPONSE"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload all tarballs to Release
+        run: |
+          echo "Uploading artifacts to release..."
+          for file in artifacts/*/satellite-*.tar.gz; do
+            echo "Uploading $file..."
+            gh release upload "${{ github.ref_name }}" "$file" --clobber
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
