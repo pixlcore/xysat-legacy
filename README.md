@@ -15,12 +15,12 @@ If you are editing the `config.json` file, locate the top-level `satellite` obje
 "base_url": "https://github.com/pixlcore/xysat-legacy/releases",
 ```
 
-If you are using the web-based configuration editor, enter "satellite" as the search string, and change following fields:
+If you are using the web-based configuration editor, enter "satellite" as the search string, and change the following fields:
 
 - **Release Metadata URL**: `https://api.github.com/repos/pixlcore/xysat-legacy/releases`
 - **Release Base URL**: `https://github.com/pixlcore/xysat-legacy/releases`
 
-Save changes, and the next time you add a new Linux x64 server, it will use the legacy compatibility build of Node.js LTS.
+Save the changes, and the next time you add a new Linux x64 server, it will use the legacy compatibility build of Node.js LTS.
 
 ## What This Repo Does
 
