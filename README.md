@@ -1,6 +1,6 @@
-# xySat Legacy Builds
+# xySat Legacy OS Compatibility Project
 
-This repository produces legacy build artifacts for the [xySat](https://github.com/pixlcore/xysat) companion to the [xyOps](https://github.com/pixlcore/xyops) workflow automation and server monitoring platform.
+This repository produces legacy OS build artifacts for the [xySat](https://github.com/pixlcore/xysat) companion to the [xyOps](https://github.com/pixlcore/xyops) workflow automation and server monitoring platform.
 
 It exists because official Node.js binaries for versions above v16 break on older Linux OSes (e.g. Amazon Linux 2 and CentOS 7).  To keep xySat working on those legacy systems, this repo builds a special Linux x64 bundle using the [unofficial Node.js build](https://github.com/nodejs/unofficial-builds/) that targets GLIBC 2.17.
 
