@@ -13,14 +13,12 @@ If you are editing the `config.json` file, locate the top-level `satellite` obje
 ```json
 "list_url": "https://api.github.com/repos/pixlcore/xysat-legacy/releases",
 "base_url": "https://github.com/pixlcore/xysat-legacy/releases",
-"image": "ghcr.io/pixlcore/xysat-legacy",
 ```
 
 If you are using the web-based configuration editor, enter "satellite" as the search string, and change the following fields:
 
 - **Release Metadata URL**: `https://api.github.com/repos/pixlcore/xysat-legacy/releases`
 - **Release Base URL**: `https://github.com/pixlcore/xysat-legacy/releases`
-- **xySat Docker Image**: `ghcr.io/pixlcore/xysat-legacy`
 
 Save the changes, and the next time you add a new Linux x64 server, it will use the legacy compatibility build of Node.js LTS.
 
