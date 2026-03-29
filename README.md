@@ -8,19 +8,23 @@ It exists because official Node.js binaries for versions above v16 break on olde
 
 If you have older Linux x64 servers running Amazon Linux 2 or CentOS 7, here is how to enable legacy support in xyOps.  You can either edit your `/opt/xyops/conf/config.json` file or use the web-based configuration editor.
 
-If you are editing the `config.json` file, locate the top-level `satellite` object in the file, and change these two nested properties as shown:
+If you are editing the `config.json` file, locate the top-level `satellite` object in the file, and change these three nested properties as shown:
 
 ```json
 "list_url": "https://api.github.com/repos/pixlcore/xysat-legacy/releases",
 "base_url": "https://github.com/pixlcore/xysat-legacy/releases",
+"image": "ghcr.io/pixlcore/xysat-legacy",
 ```
 
 If you are using the web-based configuration editor, enter "satellite" as the search string, and change the following fields:
 
 - **Release Metadata URL**: `https://api.github.com/repos/pixlcore/xysat-legacy/releases`
 - **Release Base URL**: `https://github.com/pixlcore/xysat-legacy/releases`
+- **xySat Docker Image**: `ghcr.io/pixlcore/xysat-legacy`
 
 Save the changes, and the next time you add a new Linux x64 server, it will use the legacy compatibility build of Node.js LTS.
+
+Please note that xyOps caches satellite tarballs for 1 hour by default, so you may need to wait up to an hour for this change to take effect, or you can reduce the TTL in your configuration.
 
 ## What This Repo Does
 
